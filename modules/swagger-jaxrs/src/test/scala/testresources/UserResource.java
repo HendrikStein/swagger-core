@@ -1,13 +1,15 @@
 package testresources;
 
-import testmodels.*;
-import com.wordnik.swagger.core.*;
-import com.wordnik.swagger.annotations.*;
-
-import javax.ws.rs.*;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
 import javax.ws.rs.core.Response;
 
-import javax.xml.bind.annotation.*;
+import testmodels.User;
+
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
+import com.wordnik.swagger.annotations.ApiResponse;
+import com.wordnik.swagger.annotations.ApiResponses;
 
 @Path("/nested")
 @Api(value = "/nested", description = "nested model resource")

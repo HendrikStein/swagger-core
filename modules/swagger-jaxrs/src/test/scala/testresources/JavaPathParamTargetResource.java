@@ -1,13 +1,19 @@
 package testresources;
 
-import testmodels.*;
-import com.wordnik.swagger.core.*;
-import com.wordnik.swagger.annotations.*;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Response;
 
-import javax.ws.rs.*;
-import javax.ws.rs.core.*;
+import testmodels.JavaSample;
 
-import javax.xml.bind.annotation.*;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
+import com.wordnik.swagger.annotations.ApiParam;
+import com.wordnik.swagger.annotations.ApiResponse;
+import com.wordnik.swagger.annotations.ApiResponses;
 
 @Path("/javaPathParamTest")
 @Api(value = "/javaPathParamTest")

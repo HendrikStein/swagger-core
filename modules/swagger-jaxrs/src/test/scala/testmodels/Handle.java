@@ -1,8 +1,6 @@
 package testmodels;
 
-import java.util.ArrayList;
-
-import javax.xml.bind.annotation.*;
+import javax.xml.bind.annotation.XmlElement;
 
 public class Handle {
   @XmlElement
