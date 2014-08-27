@@ -4,24 +4,20 @@ import com.wordnik.swagger.model._
 import com.wordnik.swagger.core.{ SwaggerSpec, SwaggerTypes }
 import com.wordnik.swagger.core.util.TypeUtil
 import com.wordnik.swagger.annotations.ApiModelProperty
-
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonIgnoreProperties}
-
+import com.fasterxml.jackson.annotation.{ JsonIgnore, JsonProperty, JsonIgnoreProperties }
 import org.slf4j.LoggerFactory
-
 import sun.reflect.generics.reflectiveObjects.{ ParameterizedTypeImpl, TypeVariableImpl }
-
 import java.lang.reflect.{ Type, TypeVariable, Field, Modifier, Method, ParameterizedType }
 import java.lang.annotation.Annotation
 import javax.xml.bind.annotation._
-
 import scala.collection.mutable.{ LinkedHashMap, ListBuffer, HashSet, HashMap }
+import com.google.gson.annotations.SerializedName
 
-class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (implicit properties: LinkedHashMap[String, ModelProperty]) {
+class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty)(implicit properties: LinkedHashMap[String, ModelProperty]) {
   private val LOGGER = LoggerFactory.getLogger(classOf[ModelPropertyParser])
 
   val typeMap = {
-    if(t.isEmpty)
+    if (t.isEmpty)
       SwaggerTypes.primitives
     else t
   }
@@ -33,7 +29,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
   def parse = Option(cls).map(parseRecursive(_))
 
   def parseRecursive(hostClass: Class[_]): Unit = {
-    if(!hostClass.isEnum) {
+    if (!hostClass.isEnum) {
       LOGGER.debug("processing class " + hostClass)
 
       val ignoredProperties = parseIgnorePropertiesClassAnnotation(hostClass)
@@ -63,8 +59,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
       }
 
       Option(hostClass.getSuperclass).map(parseRecursive(_))
-    }
-    else {
+    } else {
       LOGGER.debug("Not processing enum class " + hostClass)
     }
   }
@@ -97,7 +92,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
     }
   }
 
-  def parseIgnorePropertiesClassAnnotation(returnClass: Class[_]) : Array[String] = {
+  def parseIgnorePropertiesClassAnnotation(returnClass: Class[_]): Array[String] = {
     var ignoredProperties = Array[String]()
     val ignore = returnClass.getAnnotation(classOf[JsonIgnoreProperties])
 
@@ -121,10 +116,11 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
 
     var isFieldExists = false
     var isJsonProperty = false
+    var isGsonProperty = false
     var hasAccessorNoneAnnotation = false
 
     var processedAnnotations = processAnnotations(originalName, propertyAnnotations)
-    if(processedAnnotations.contains("paramType") && processedAnnotations("paramType") != null)
+    if (processedAnnotations.contains("paramType") && processedAnnotations("paramType") != null)
       overrideDataType = processedAnnotations("paramType").toString
 
     var name = processedAnnotations("name").asInstanceOf[String]
@@ -134,7 +130,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
     var position = processedAnnotations("position").asInstanceOf[Int]
 
     var description = {
-      if(processedAnnotations.contains("description") && processedAnnotations("description") != null)
+      if (processedAnnotations.contains("description") && processedAnnotations("description") != null)
         Some(processedAnnotations("description").asInstanceOf[String])
       else None
     }
@@ -142,8 +138,8 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
     var isXmlElement = processedAnnotations("isXmlElement").asInstanceOf[Boolean]
     val isDocumented = processedAnnotations("isDocumented").asInstanceOf[Boolean]
     var allowableValues = {
-      if(returnClass.isEnum)
-        Some(AllowableListValues((for(v <- returnClass.getEnumConstants) yield v.toString).toList))
+      if (returnClass.isEnum)
+        Some(AllowableListValues((for (v <- returnClass.getEnumConstants) yield v.toString).toList))
       else
         processedAnnotations("allowableValues").asInstanceOf[Option[AllowableValues]]
     }
@@ -157,21 +153,22 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
         name = propAnnoOutput("name").asInstanceOf[String]
       }
 
-      if(propAnnoOutput.contains("paramType") && propAnnoOutput("paramType") != null)
+      if (propAnnoOutput.contains("paramType") && propAnnoOutput("paramType") != null)
         overrideDataType = propAnnoOutput("paramType").toString
 
-      if(allowableValues == None)
+      if (allowableValues == None)
         allowableValues = propAnnoOutput("allowableValues").asInstanceOf[Option[AllowableValues]]
-      if(description == None && propAnnoOutput.contains("description") && propAnnoOutput("description") != null)
+      if (description == None && propAnnoOutput.contains("description") && propAnnoOutput("description") != null)
         description = Some(propAnnoOutput("description").asInstanceOf[String])
-      if(propPosition != 0) position = propAnnoOutput("position").asInstanceOf[Int]
-      if(required == false) required = propAnnoOutput("required").asInstanceOf[Boolean]
+      if (propPosition != 0) position = propAnnoOutput("position").asInstanceOf[Int]
+      if (required == false) required = propAnnoOutput("required").asInstanceOf[Boolean]
       isFieldExists = true
       if (!isTransient) isTransient = propAnnoOutput("isTransient").asInstanceOf[Boolean]
       if (!isXmlElement) isXmlElement = propAnnoOutput("isXmlElement").asInstanceOf[Boolean]
 
       if (name == null) name = originalName
       isJsonProperty = propAnnoOutput("isJsonProperty").asInstanceOf[Boolean]
+      isGsonProperty = propAnnoOutput("isGsonProperty").asInstanceOf[Boolean]
     } catch {
       //this means there is no field declared to look for field level annotations.
       case e: java.lang.NoSuchFieldException => {
@@ -184,7 +181,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
     if (!isXmlElement && hasAccessorNoneAnnotation)
       isTransient = true
 
-    if (!(isTransient && !isXmlElement && !isJsonProperty) && name != null && (isFieldExists || isGetter || isDocumented)) {
+    if (!(isTransient && !isXmlElement && !isJsonProperty && !isGsonProperty) && name != null && (isFieldExists || isGetter || isDocumented)) {
       var paramType = getDataType(genericReturnType, returnType, false)
       LOGGER.debug("inspecting " + paramType)
       var simpleName = Option(overrideDataType) match {
@@ -192,7 +189,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
         case _ => getDataType(genericReturnType, returnType, true)
       }
       if (!"void".equals(paramType) && null != paramType && !processedFields.contains(name)) {
-        if(!excludedFieldTypes.contains(paramType)) {
+        if (!excludedFieldTypes.contains(paramType)) {
           val items = {
             val ComplexTypeMatcher = "([a-zA-Z]*)\\[([a-zA-Z\\.\\-0-9_]*)\\].*".r
             paramType match {
@@ -201,15 +198,14 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
                 paramType = containerType
                 val ComplexTypeMatcher(t, simpleTypeRef) = simpleName
                 val typeRef = {
-                  if(simpleTypeRef.indexOf(",") > 0) // it's a map, use the value only
+                  if (simpleTypeRef.indexOf(",") > 0) // it's a map, use the value only
                     simpleTypeRef.split(",").last
                   else simpleTypeRef
                 }
                 simpleName = containerType
-                if(isComplex(simpleTypeRef)) {
+                if (isComplex(simpleTypeRef)) {
                   Some(ModelRef(null, Some(simpleTypeRef), Some(basePart)))
-                }
-                else Some(ModelRef(simpleTypeRef, None, Some(basePart)))
+                } else Some(ModelRef(simpleTypeRef, None, Some(basePart)))
               }
               case _ => None
             }
@@ -225,12 +221,10 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
             items)
           LOGGER.debug("added param type " + paramType + " for field " + name)
           properties += name -> param
-        }
-        else {
+        } else {
           LOGGER.debug("field " + paramType + " is has been explicitly excluded")
         }
-      }
-      else {
+      } else {
         LOGGER.debug("skipping " + name)
       }
       processedFields += name
@@ -252,7 +246,8 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
     var isXmlElement = false
     var isDocumented = false
     var isJsonProperty = false
-
+    var isGsonProperty = false
+    
     var classname = name
     var updatedName = name
     var required = false
@@ -272,8 +267,8 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
           description = readString(e.value)
           notes = readString(e.notes)
           paramType = readString(e.dataType)
-          if(e.required) required = true
-          if(e.position != 0) position = e.position
+          if (e.required) required = true
+          if (e.position != 0) position = e.position
           isDocumented = true
           allowableValues = Some(toAllowableValues(e.allowableValues))
           paramAccess = readString(e.access)
@@ -282,8 +277,12 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
         case e: XmlAttribute => {
           updatedName = readString(e.name, name, "##default")
           updatedName = readString(name, name)
-          if(e.required) required = true
+          if (e.required) required = true
           isXmlElement = true
+        }
+        case e: SerializedName => {
+          updatedName = readString(e.value, name)
+          isGsonProperty = true
         }
         case e: XmlElement => {
           updatedName = readString(e.name, name, "##default")
@@ -312,6 +311,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
     output += "isXmlElement" -> isXmlElement
     output += "isDocumented" -> isDocumented
     output += "isJsonProperty" -> isJsonProperty
+    output += "isGsonProperty" -> isGsonProperty
     output += "name" -> updatedName
     output += "required" -> required
     output += "defaultValue" -> defaultValue
@@ -375,16 +375,15 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
     if (ranges.size < 2) {
       LOGGER.error("invalid range input")
       AnyAllowableValues
-    }
-    else {
+    } else {
       val min = ranges(0) match {
-        case e: String if(e == positiveInfinity) => Float.PositiveInfinity
-        case e: String if(e == negativeInfinity) => Float.NegativeInfinity
+        case e: String if (e == positiveInfinity) => Float.PositiveInfinity
+        case e: String if (e == negativeInfinity) => Float.NegativeInfinity
         case e: String => e.toFloat
       }
       val max = ranges(1) match {
-        case e: String if(e == positiveInfinity) => Float.PositiveInfinity
-        case e: String if(e == negativeInfinity) => Float.NegativeInfinity
+        case e: String if (e == positiveInfinity) => Float.PositiveInfinity
+        case e: String if (e == negativeInfinity) => Float.NegativeInfinity
         case e: String => e.toFloat
       }
       AllowableRangeValues(min.toString, max.toString)
@@ -415,11 +414,10 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
     } else {
       if (genericReturnType.getClass.isAssignableFrom(classOf[TypeVariableImpl[_]])) {
         genericReturnType.asInstanceOf[TypeVariableImpl[_]].getName
-      }
-      else if (!genericReturnType.getClass.isAssignableFrom(classOf[ParameterizedTypeImpl])) {
-        if(genericReturnType.isInstanceOf[Class[_]])
+      } else if (!genericReturnType.getClass.isAssignableFrom(classOf[ParameterizedTypeImpl])) {
+        if (genericReturnType.isInstanceOf[Class[_]])
           readName(genericReturnType.asInstanceOf[Class[_]], isSimple)
-        else{
+        else {
           LOGGER.debug("can't get type info for " + genericReturnType.toString)
           genericReturnType.toString
         }
@@ -428,8 +426,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty) (im
         if (parameterizedType.getRawType == classOf[Option[_]]) {
           val valueType = parameterizedType.getActualTypeArguments.head
           getDataType(valueType, valueType, isSimple)
-        }
-        else {
+        } else {
           genericReturnType.toString match {
             case "java.lang.Class<?>" => null
             case e: String => e
