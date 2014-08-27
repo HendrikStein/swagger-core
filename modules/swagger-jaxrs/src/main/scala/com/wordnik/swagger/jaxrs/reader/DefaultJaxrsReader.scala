@@ -17,41 +17,41 @@ import scala.collection.mutable.{ ListBuffer, HashMap, HashSet }
 
 class DefaultJaxrsApiReader extends JaxrsApiReader {
   def readRecursive(
-    docRoot: String, 
-    parentPath: String, cls: Class[_], 
+    docRoot: String,
+    parentPath: String, cls: Class[_],
     config: SwaggerConfig,
     operations: ListBuffer[Tuple3[String, String, ListBuffer[Operation]]],
     parentMethods: ListBuffer[Method]): Option[ApiListing] = {
     val api = cls.getAnnotation(classOf[Api])
 
     // must have @Api annotation to process!
-    if(api != null) {
+    if (api != null) {
       val consumes = Option(api.consumes) match {
-        case Some(e) if(e != "") => e.split(",").map(_.trim).toList
+        case Some(e) if (e != "") => e.split(",").map(_.trim).toList
         case _ => cls.getAnnotation(classOf[Consumes]) match {
           case e: Consumes => e.value.toList
           case _ => List()
         }
       }
       val produces = Option(api.produces) match {
-        case Some(e) if(e != "") => e.split(",").map(_.trim).toList
+        case Some(e) if (e != "") => e.split(",").map(_.trim).toList
         case _ => cls.getAnnotation(classOf[Produces]) match {
           case e: Produces => e.value.toList
           case _ => List()
         }
       }
       val protocols = Option(api.protocols) match {
-        case Some(e) if(e != "") => e.split(",").map(_.trim).toList
+        case Some(e) if (e != "") => e.split(",").map(_.trim).toList
         case _ => List()
       }
       val description = api.description match {
-        case e: String if(e != "") => Some(e)
+        case e: String if (e != "") => Some(e)
         case _ => None
       }
       // look for method-level annotated properties
       val parentParams: List[Parameter] = getAllParamsFromFields(cls)
 
-      for(method <- cls.getMethods) {
+      for (method <- cls.getMethods) {
         val returnType = findSubresourceType(method)
         val path = method.getAnnotation(classOf[Path]) match {
           case e: Path => e.value()
@@ -66,7 +66,7 @@ class DefaultJaxrsApiReader extends JaxrsApiReader {
             parentMethods -= method
           }
           case _ => {
-            if(method.getAnnotation(classOf[ApiOperation]) != null) {
+            if (method.getAnnotation(classOf[ApiOperation]) != null) {
               readMethod(method, parentParams, parentMethods) match {
                 case Some(op) => appendOperation(endpoint, path, op, operations)
                 case None =>
@@ -76,7 +76,7 @@ class DefaultJaxrsApiReader extends JaxrsApiReader {
         }
       }
       // sort them by min position in the operations
-      val s = (for(op <- operations) yield {
+      val s = (for (op <- operations) yield {
         (op, op._3.map(_.position).toList.min)
       }).sortWith(_._2 < _._2).toList
       val orderedOperations = new ListBuffer[Tuple3[String, String, ListBuffer[Operation]]]
@@ -94,13 +94,13 @@ class DefaultJaxrsApiReader extends JaxrsApiReader {
       }).toList
 
       val basePath = {
-        if(api.basePath == "")
+        if (api.basePath == "")
           config.basePath
         else
           api.basePath
       }
       val models = ModelUtil.modelsFromApis(apis)
-      Some(ApiListing (
+      Some(ApiListing(
         apiVersion = config.apiVersion,
         swaggerVersion = config.swaggerVersion,
         basePath = basePath,
@@ -111,10 +111,8 @@ class DefaultJaxrsApiReader extends JaxrsApiReader {
         produces = produces,
         consumes = consumes,
         protocols = protocols,
-        position = api.position)
-      )
-    }
-    else None
+        position = api.position))
+    } else None
   }
 
   // decorates a Parameter based on annotations, returns None if param should be ignored
@@ -122,6 +120,7 @@ class DefaultJaxrsApiReader extends JaxrsApiReader {
     var shouldIgnore = false
     for (pa <- paramAnnotations) {
       pa match {
+        case e: ApiHeaderParam => parseApiHeaderParamAnnotation(mutable, e)
         case e: ApiParam => parseApiParamAnnotation(mutable, e)
         case e: QueryParam => {
           mutable.name = readString(e.value, mutable.name)
@@ -155,14 +154,13 @@ class DefaultJaxrsApiReader extends JaxrsApiReader {
         case _ =>
       }
     }
-    if(!shouldIgnore) {
-      if(mutable.paramType == null) {
+    if (!shouldIgnore) {
+      if (mutable.paramType == null) {
         mutable.paramType = TYPE_BODY
         mutable.name = TYPE_BODY
       }
       List(mutable.asParameter)
-    }
-    else List.empty
+    } else List.empty
   }
 
   def findSubresourceType(method: Method): Class[_] = {
