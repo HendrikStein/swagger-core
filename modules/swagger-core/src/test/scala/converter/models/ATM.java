@@ -3,7 +3,8 @@ package converter.models;
 import java.util.List;
 
 public class ATM {
-    private List<Currency> supportedCurrencies;
+    @SuppressWarnings("unused")
+	private List<Currency> supportedCurrencies;
 
     private Currency currency;
 
