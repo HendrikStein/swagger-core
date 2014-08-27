@@ -1,17 +1,42 @@
 package com.wordnik.swagger.converter
 
-import com.wordnik.swagger.model._
-import com.wordnik.swagger.core.{ SwaggerSpec, SwaggerTypes }
-import com.wordnik.swagger.core.util.TypeUtil
-import com.wordnik.swagger.annotations.ApiModelProperty
-import com.fasterxml.jackson.annotation.{ JsonIgnore, JsonProperty, JsonIgnoreProperties }
-import org.slf4j.LoggerFactory
-import sun.reflect.generics.reflectiveObjects.{ ParameterizedTypeImpl, TypeVariableImpl }
-import java.lang.reflect.{ Type, TypeVariable, Field, Modifier, Method, ParameterizedType }
 import java.lang.annotation.Annotation
-import javax.xml.bind.annotation._
-import scala.collection.mutable.{ LinkedHashMap, ListBuffer, HashSet, HashMap }
+import java.lang.reflect.Field
+import java.lang.reflect.Method
+import java.lang.reflect.Modifier
+import java.lang.reflect.Type
+
+import scala.Array.canBuildFrom
+import scala.collection.mutable.HashMap
+import scala.collection.mutable.HashSet
+import scala.collection.mutable.LinkedHashMap
+import scala.collection.mutable.ListBuffer
+
+import org.slf4j.LoggerFactory
+
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.google.gson.annotations.SerializedName
+import com.wordnik.swagger.annotations.ApiModelProperty
+import com.wordnik.swagger.core.SwaggerSpec
+import com.wordnik.swagger.core.SwaggerTypes
+import com.wordnik.swagger.core.util.TypeUtil
+import com.wordnik.swagger.model.AllowableListValues
+import com.wordnik.swagger.model.AllowableRangeValues
+import com.wordnik.swagger.model.AllowableValues
+import com.wordnik.swagger.model.AnyAllowableValues
+import com.wordnik.swagger.model.ModelProperty
+import com.wordnik.swagger.model.ModelRef
+
+import javax.xml.bind.annotation.XmlAttribute
+import javax.xml.bind.annotation.XmlElement
+import javax.xml.bind.annotation.XmlElementWrapper
+import javax.xml.bind.annotation.XmlEnum
+import javax.xml.bind.annotation.XmlRootElement
+import javax.xml.bind.annotation.XmlTransient
+import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl
+import sun.reflect.generics.reflectiveObjects.TypeVariableImpl
 
 class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty)(implicit properties: LinkedHashMap[String, ModelProperty]) {
   private val LOGGER = LoggerFactory.getLogger(classOf[ModelPropertyParser])
@@ -116,7 +141,6 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty)(imp
 
     var isFieldExists = false
     var isJsonProperty = false
-    var isGsonProperty = false
     var hasAccessorNoneAnnotation = false
 
     var processedAnnotations = processAnnotations(originalName, propertyAnnotations)
@@ -168,7 +192,6 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty)(imp
 
       if (name == null) name = originalName
       isJsonProperty = propAnnoOutput("isJsonProperty").asInstanceOf[Boolean]
-      isGsonProperty = propAnnoOutput("isGsonProperty").asInstanceOf[Boolean]
     } catch {
       //this means there is no field declared to look for field level annotations.
       case e: java.lang.NoSuchFieldException => {
@@ -181,7 +204,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty)(imp
     if (!isXmlElement && hasAccessorNoneAnnotation)
       isTransient = true
 
-    if (!(isTransient && !isXmlElement && !isJsonProperty && !isGsonProperty) && name != null && (isFieldExists || isGetter || isDocumented)) {
+    if (!(isTransient && !isXmlElement && !isJsonProperty) && name != null && (isFieldExists || isGetter || isDocumented)) {
       var paramType = getDataType(genericReturnType, returnType, false)
       LOGGER.debug("inspecting " + paramType)
       var simpleName = Option(overrideDataType) match {
@@ -246,8 +269,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty)(imp
     var isXmlElement = false
     var isDocumented = false
     var isJsonProperty = false
-    var isGsonProperty = false
-    
+
     var classname = name
     var updatedName = name
     var required = false
@@ -282,7 +304,7 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty)(imp
         }
         case e: SerializedName => {
           updatedName = readString(e.value, name)
-          isGsonProperty = true
+          isJsonProperty = true
         }
         case e: XmlElement => {
           updatedName = readString(e.name, name, "##default")
@@ -311,7 +333,6 @@ class ModelPropertyParser(cls: Class[_], t: Map[String, String] = Map.empty)(imp
     output += "isXmlElement" -> isXmlElement
     output += "isDocumented" -> isDocumented
     output += "isJsonProperty" -> isJsonProperty
-    output += "isGsonProperty" -> isGsonProperty
     output += "name" -> updatedName
     output += "required" -> required
     output += "defaultValue" -> defaultValue
